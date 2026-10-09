@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Helvetica Neue: file woff2 in public/fonts/. */
+@font-face {
+  font-family: "Helvetica Neue";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: local("Helvetica Neue"), local("HelveticaNeue"), url("/fonts/HelveticaNeue-Roman.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Helvetica Neue";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: local("Helvetica Neue Medium"), local("HelveticaNeue-Medium"), url("/fonts/HelveticaNeue-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Helvetica Neue";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: local("Helvetica Neue Bold"), local("HelveticaNeue-Bold"), url("/fonts/HelveticaNeue-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Helvetica Neue";
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+  src: local("Helvetica Neue Bold Italic"), local("HelveticaNeue-BoldItalic"), url("/fonts/HelveticaNeue-BoldItalic.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light;
+  --radius: 0.5rem;
+
+  /* Tema chiaro */
+  --background: #f7f7f5;
+  --foreground: #1f1f1f;
+
+  --card: #ffffff;
+  --card-foreground: #1f1f1f;
+  --popover: #ffffff;
+  --popover-foreground: #1f1f1f;
+
+  --primary: #2f6fd6;
+  --primary-foreground: #ffffff;
+
+  --secondary: #efefec;
+  --secondary-foreground: #1f1f1f;
+  --muted: #efefec;
+  --muted-foreground: #6b6b68;
+  --accent: #efefec;
+  --accent-foreground: #1f1f1f;
+
+  --destructive: #d1423a;
+  --destructive-foreground: #ffffff;
+  --success: #2f8f63;
+  --success-foreground: #ffffff;
+  --warning: #b7791f;
+  --warning-foreground: #ffffff;
+
+  --border: #e3e3df;
+  --input: #d6d6d1;
+  --ring: #2f6fd6;
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Tema scuro (predefinito) */
+  --background: #191919;
+  --foreground: #ececec;
+
+  --card: #202020;
+  --card-foreground: #ececec;
+  --popover: #232323;
+  --popover-foreground: #ececec;
+
+  --primary: #3f8cf0;
+  --primary-foreground: #ffffff;
+
+  --secondary: #2a2a2a;
+  --secondary-foreground: #ececec;
+  --muted: #262626;
+  --muted-foreground: #9b9b9b;
+  --accent: #2c2c2c;
+  --accent-foreground: #ececec;
+
+  --destructive: #e0574c;
+  --destructive-foreground: #ffffff;
+  --success: #4fae82;
+  --success-foreground: #0e1a14;
+  --warning: #e0a04a;
+  --warning-foreground: #1c1407;
+
+  --border: #303030;
+  --input: #383838;
+  --ring: #3f8cf0;
+}
+
+:root {
+  /* Helvetica Neue: file inclusi in public/fonts (vedi @font-face sopra),
+     con ripiego su Helvetica/Arial. */
+  --font-sans: "Helvetica Neue", "HelveticaNeue", Helvetica, "Nimbus Sans", "Liberation Sans", Arial, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-sans);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+}
+
+@layer utilities {
+  /* Per importi in tabella: allinea le cifre invece di lasciarle "danzare" */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

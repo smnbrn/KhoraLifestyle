@@ -1,0 +1,48 @@
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Search } from "lucide-react";
+
+import { Input } from "@/components/ui/input";
+
+// Riutilizzabile per qualunque tabella con ricerca guidata dall'URL
+// (?q=...): aggiorna la query string con un debounce, così la pagina
+// server-side rifà il fetch senza bisogno di uno stato client separato.
+export function TableSearchInput({ placeholder = "Cerca…" }: { placeholder?: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [value, setValue] = useState(searchParams.get("q") ?? "");
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value) {
+        params.set("q", value);
+      } else {
+        params.delete("q");
+      }
+      params.delete("page");
+      startTransition(() => {
+        router.replace(`${pathname}?${params.toString()}`);
+      });
+       
+    }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <div className="relative w-full max-w-sm">
+      <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        className="pl-8"
+      />
+    </div>
+  );
+}
