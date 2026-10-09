@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EntityFilter } from "@/components/shared/entity-filter";
 import { IncomeExpenseChart } from "@/components/dashboard/income-expense-chart";
 import { formatCurrency } from "@/lib/utils";
-import { resolvePeriod } from "@/lib/report-periods";
+import { ALWAYS_START, resolvePeriod } from "@/lib/report-periods";
 import { getCurrentUser } from "@/services/auth.service";
 import { listActiveClientsForSelect, listActiveProjectsForSelect } from "@/services/projects.service";
 import { listCategories } from "@/services/finance.service";
@@ -47,7 +47,7 @@ export default async function ReportPage({
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Report</h1>
         <p className="text-sm text-muted-foreground">
-          Dal {start} al {end}
+          {start === ALWAYS_START ? `Da sempre fino al ${end}` : `Dal ${start} al ${end}`}
         </p>
       </div>
 

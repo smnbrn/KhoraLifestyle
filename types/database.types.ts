@@ -147,6 +147,7 @@ export type Database = {
           client_id: string | null;
           project_id: string | null;
           task_id: string | null;
+          completed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -435,6 +436,8 @@ export type Database = {
           id: string;
           user_id: string;
           project_id: string;
+          /** se valorizzato è una micro attività della macro attività indicata */
+          parent_id: string | null;
           name: string;
           start_date: string;
           duration_days: number;
@@ -455,7 +458,8 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["project_phases"]["Row"]>;
         Relationships: [
-          { foreignKeyName: "project_phases_project_id_fkey"; columns: ["project_id"]; referencedRelation: "projects"; referencedColumns: ["id"] }
+          { foreignKeyName: "project_phases_project_id_fkey"; columns: ["project_id"]; referencedRelation: "projects"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_phases_parent_id_fkey"; columns: ["parent_id"]; referencedRelation: "project_phases"; referencedColumns: ["id"] }
         ];
       };
       contacts: {
@@ -513,6 +517,8 @@ export type Database = {
           target: number;
           manual_value: number;
           year: number;
+          /** ultimo anno dell'obiettivo (null = vale solo per `year`) */
+          end_year: number | null;
           show_on_home: boolean;
           sort_order: number;
           created_at: string;
@@ -575,6 +581,8 @@ export type Database = {
           tenant_name: string | null;
           rent_amount: number;
           rent_frequency: "monthly" | "quarterly" | "yearly";
+          /** giorno del mese (1-31) in cui si incassa l'affitto */
+          rent_day: number | null;
           contract_start: string | null;
           contract_end: string | null;
           imu_amount: number | null;
@@ -620,6 +628,12 @@ export type Database = {
           due_date: string;
           amount: number | null;
           recurrence: "none" | "monthly" | "quarterly" | "yearly";
+          /** tempo a giorni (come i progetti): inizio + durata + congelamento */
+          start_date: string | null;
+          duration_days: number | null;
+          timeline_running: boolean;
+          frozen_since: string | null;
+          frozen_days: number;
           last_paid_at: string | null;
           completed_at: string | null;
           notes: string | null;
@@ -721,7 +735,7 @@ export type Database = {
           id: string;
           user_id: string;
           page_id: string;
-          type: "heading" | "text" | "checklist" | "table";
+          type: "heading" | "text" | "checklist" | "table" | "gantt";
           content: Json;
           sort_order: number;
           created_at: string;
@@ -730,7 +744,7 @@ export type Database = {
         Insert: Partial<Database["public"]["Tables"]["page_blocks"]["Row"]> & {
           user_id: string;
           page_id: string;
-          type: "heading" | "text" | "checklist" | "table";
+          type: "heading" | "text" | "checklist" | "table" | "gantt";
         };
         Update: Partial<Database["public"]["Tables"]["page_blocks"]["Row"]>;
         Relationships: [

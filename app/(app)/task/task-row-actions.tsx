@@ -40,6 +40,7 @@ export function TaskRowActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function handleDelete() {
     startTransition(async () => {
@@ -56,7 +57,7 @@ export function TaskRowActions({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="size-8">
             <MoreHorizontal />
@@ -65,6 +66,7 @@ export function TaskRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <TaskFormDialog
+            onClose={() => setMenuOpen(false)}
             clients={clients}
             projects={projects}
             legacyEnd={task.duration_days == null ? task.due_date : null}

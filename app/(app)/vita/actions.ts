@@ -12,6 +12,7 @@ import {
   VEHICLE_KIND,
 } from "@/lib/constants/second-brain";
 import { todayIso } from "@/lib/dates";
+import { buildTimelineValues } from "@/lib/timeline-input";
 import { num, oneOf, str } from "@/lib/form-data";
 import { getCurrentUser } from "@/services/auth.service";
 import {
@@ -27,7 +28,9 @@ import {
   deleteTrip,
   deleteTripItem,
   deleteVehicle,
+  getDeadlineTimelineState,
   markDeadlinePaid,
+  setDeadlineRunning,
   toggleWorkout,
   updateDeadline,
   updateRental,
@@ -53,11 +56,17 @@ export async function saveRental(fd: FormData): Promise<ActionResult> {
   if (!user) return NO_USER;
   const name = str(fd, "name");
   if (!name) return { success: false, error: "Serve un nome (es. Casa 1)." };
+  const rentDayRaw = num(fd, "rent_day");
+  const rentDay = rentDayRaw == null ? null : Math.round(rentDayRaw);
+  if (rentDay != null && (rentDay < 1 || rentDay > 31)) {
+    return { success: false, error: "Il giorno dell'incasso deve essere tra 1 e 31." };
+  }
   const values = {
     name,
     address: str(fd, "address"),
     tenant_name: str(fd, "tenant_name"),
     rent_amount: num(fd, "rent_amount") ?? 0,
+    rent_day: rentDay,
     rent_frequency: oneOf(fd, "rent_frequency", Object.keys(RENT_FREQUENCY) as (keyof typeof RENT_FREQUENCY)[], "monthly"),
     contract_start: str(fd, "contract_start"),
     contract_end: str(fd, "contract_end"),
@@ -131,24 +140,53 @@ export async function saveDeadline(fd: FormData): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return NO_USER;
   const kind = oneOf(fd, "kind", Object.keys(DEADLINE_KIND) as (keyof typeof DEADLINE_KIND)[], "other");
-  const dueDate = str(fd, "due_date");
-  if (!dueDate) return { success: false, error: "Indica la data di scadenza." };
   const rentalId = str(fd, "rental_id");
   const vehicleId = str(fd, "vehicle_id");
   if (!!rentalId === !!vehicleId) return { success: false, error: "Scadenza non collegata correttamente." };
+  const id = str(fd, "id");
+
+  // Tempo "come i progetti": data di inizio + giorni (+ congelamento). In alternativa una data fissa.
+  const startDate = str(fd, "start_date") ?? undefined;
+  const durationRaw = num(fd, "duration_days");
+  if (durationRaw != null && (durationRaw < 0 || !Number.isInteger(durationRaw))) {
+    return { success: false, error: "I giorni devono essere un numero intero." };
+  }
+  const existing = id ? await getDeadlineTimelineState(user.id, id) : null;
+  const timeline = buildTimelineValues(
+    {
+      startDate,
+      durationDays: durationRaw != null ? String(durationRaw) : undefined,
+      timelineRunning: existing?.timeline_running ?? true,
+    },
+    existing
+  );
+  if ("error" in timeline) return { success: false, error: timeline.error };
+
+  // con inizio + giorni la scadenza è calcolata; senza, serve la data fissa
+  const dueDate = timeline.end ?? str(fd, "due_date");
+  if (!dueDate) return { success: false, error: "Indica la data di scadenza, oppure inizio e giorni." };
 
   const values = {
     kind,
     title: str(fd, "title") ?? DEADLINE_KIND[kind],
     due_date: dueDate,
+    ...timeline.values,
     amount: num(fd, "amount"),
     recurrence: oneOf(fd, "recurrence", Object.keys(RECURRENCE) as (keyof typeof RECURRENCE)[], "none"),
     notes: str(fd, "notes"),
   };
-  const id = str(fd, "id");
   const { error } = id
     ? await updateDeadline(user.id, id, values)
     : await createDeadline({ ...values, user_id: user.id, rental_id: rentalId, vehicle_id: vehicleId });
+  if (error) return FAIL;
+  refresh();
+  return OK;
+}
+
+export async function setDeadlineTimelineRunning(id: string, running: boolean): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return NO_USER;
+  const { error } = await setDeadlineRunning(user.id, id, running);
   if (error) return FAIL;
   refresh();
   return OK;

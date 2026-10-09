@@ -19,10 +19,13 @@ const NONE = "none";
 
 export function ContactFormDialog({
   trigger,
+  onClose,
   contact,
   clients,
 }: {
   trigger: ReactNode;
+  /** chiamata quando la finestra si chiude (serve a chiudere anche il menu da cui è stata aperta) */
+  onClose?: () => void;
   contact?: Partial<ContactInput> & { id?: string };
   clients: { id: string; name: string }[];
 }) {
@@ -41,6 +44,14 @@ export function ContactFormDialog({
     defaultValues: { kind: "other", ...contact },
   });
 
+  // Il form viene creato una volta sola: dopo un salvataggio i campi resterebbero fermi ai valori
+  // vecchi e un nuovo salvataggio li riscriverebbe. A ogni apertura lo riporto ai dati attuali.
+  function handleOpenChange(next: boolean) {
+    if (next) reset({ kind: "other", ...contact });
+    setOpen(next);
+    if (!next) onClose?.();
+  }
+
   function onSubmit(values: ContactInput) {
     startTransition(async () => {
       const formData = new FormData();
@@ -49,7 +60,7 @@ export function ContactFormDialog({
       const result = await saveContact(formData);
       if (result.success) {
         toast.success(isEdit ? "Contatto aggiornato" : "Contatto aggiunto");
-        setOpen(false);
+        handleOpenChange(false);
         if (!isEdit) reset();
       } else {
         toast.error(result.error);
@@ -58,7 +69,7 @@ export function ContactFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>

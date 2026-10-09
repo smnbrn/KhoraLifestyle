@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/services/auth.service";
 import { getCalendarItems } from "@/services/calendar.service";
 import { listActiveClientsForSelect, listActiveProjectsForSelect } from "@/services/projects.service";
-import { CALENDAR_TYPE_DOT, CALENDAR_TYPE_LABEL, CalendarGrid } from "./calendar-grid";
+import { CALENDAR_STATUS, CALENDAR_TYPE_DOT, CALENDAR_TYPE_LABEL, CalendarGrid } from "./calendar-grid";
 import { EventFormDialog } from "./event-form-dialog";
 
 function monthHref(year: number, month: number) {
@@ -78,12 +78,24 @@ export default async function CalendarioPage({
 
       <CalendarGrid monthDate={monthDate} items={items} />
 
-      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        {(Object.keys(CALENDAR_TYPE_DOT) as (keyof typeof CALENDAR_TYPE_DOT)[]).map((type) => (
-          <span key={type} className="flex items-center gap-1.5">
-            <span className={`size-1.5 rounded-full ${CALENDAR_TYPE_DOT[type]}`} /> {CALENDAR_TYPE_LABEL[type]}
-          </span>
-        ))}
+      <div className="space-y-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {(Object.keys(CALENDAR_STATUS) as (keyof typeof CALENDAR_STATUS)[]).map((status) => {
+            const st = CALENDAR_STATUS[status];
+            return (
+              <span key={status} className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 ${st.chip.split(" ")[0]}`}>
+                <st.icon className={`size-3 ${st.text}`} /> <span className={st.text}>{st.label}</span>
+              </span>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {(Object.keys(CALENDAR_TYPE_DOT) as (keyof typeof CALENDAR_TYPE_DOT)[]).map((type) => (
+            <span key={type} className="flex items-center gap-1.5">
+              <span className={`size-1.5 rounded-full ${CALENDAR_TYPE_DOT[type]}`} /> {CALENDAR_TYPE_LABEL[type]}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

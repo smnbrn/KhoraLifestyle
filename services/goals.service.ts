@@ -10,6 +10,10 @@ type GoalUpdate = Database["public"]["Tables"]["goals"]["Update"];
 export type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
 
 export type GoalProgress = GoalRow & {
+  /** ultimo anno coperto dall'obiettivo (uguale a `year` se vale per un solo anno) */
+  lastYear: number;
+  /** true se l'anno di riferimento passato a getGoalsProgress cade nel periodo dell'obiettivo */
+  inYear: boolean;
   current: number;
   remaining: number;
   /** 0-1 (limitato a 1 nell'anello) */
@@ -20,10 +24,12 @@ export type GoalProgress = GoalRow & {
 };
 
 // ---- calcolo dei valori automatici (un solo posto) ----
-async function computeAutoValues(userId: string, year: number, sources: Set<GoalSource>) {
+// Il periodo va dal 1 gennaio di `firstYear` al 31 dicembre di `lastYear`: un obiettivo
+// su più anni somma tutto il periodo, uno su un anno solo coincide con quell'anno.
+async function computeAutoValues(userId: string, firstYear: number, lastYear: number, sources: Set<GoalSource>) {
   const supabase = await createClient();
-  const start = `${year}-01-01`;
-  const end = `${year}-12-31`;
+  const start = `${firstYear}-01-01`;
+  const end = `${lastYear}-12-31`;
   const today = todayIso();
   const values: Partial<Record<GoalSource, number>> = {};
 
@@ -115,32 +121,61 @@ async function computeAutoValues(userId: string, year: number, sources: Set<Goal
   return values;
 }
 
-export async function listGoals(userId: string, year: number, options: { category?: string; homeOnly?: boolean } = {}) {
+/**
+ * Tutti gli obiettivi dell'utente (di ogni anno): è il menu degli obiettivi nell'interfaccia
+ * a scegliere cosa mostrare. Un obiettivo non sparisce più se non è dell'anno corrente.
+ */
+export async function listGoals(userId: string, options: { category?: string; homeOnly?: boolean } = {}) {
   const supabase = await createClient();
-  let query = supabase.from("goals").select("*").eq("user_id", userId).eq("year", year);
+  let query = supabase.from("goals").select("*").eq("user_id", userId);
   if (options.category) query = query.eq("category", options.category as GoalRow["category"]);
   if (options.homeOnly) query = query.eq("show_on_home", true);
-  const { data } = await query.order("sort_order", { ascending: true }).order("created_at", { ascending: true });
+  const { data } = await query
+    .order("year", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
   return data ?? [];
 }
 
+/**
+ * Obiettivi con il progresso calcolato sul loro periodo (anno iniziale → anno finale).
+ * `year` è l'anno di riferimento (di solito quello corrente): serve solo a marcare `inYear`.
+ */
 export async function getGoalsProgress(
   userId: string,
   year: number,
   options: { category?: string; homeOnly?: boolean } = {}
 ): Promise<GoalProgress[]> {
-  const goals = await listGoals(userId, year, options);
+  const goals = await listGoals(userId, options);
   if (goals.length === 0) return [];
 
-  const autoSources = new Set(goals.filter((g) => g.source !== "manual").map((g) => g.source as GoalSource));
-  const auto = autoSources.size > 0 ? await computeAutoValues(userId, year, autoSources) : {};
+  // un calcolo per ogni periodo diverso (es. 2026, 2026-2028), con le sole fonti che servono
+  const periods = new Map<string, { first: number; last: number; sources: Set<GoalSource> }>();
+  for (const g of goals) {
+    if (g.source === "manual") continue;
+    const last = g.end_year ?? g.year;
+    const key = `${g.year}-${last}`;
+    const entry = periods.get(key) ?? { first: g.year, last, sources: new Set<GoalSource>() };
+    entry.sources.add(g.source as GoalSource);
+    periods.set(key, entry);
+  }
+  const autoByPeriod = new Map<string, Partial<Record<GoalSource, number>>>();
+  await Promise.all(
+    [...periods.entries()].map(async ([key, p]) => {
+      autoByPeriod.set(key, await computeAutoValues(userId, p.first, p.last, p.sources));
+    })
+  );
 
   return goals.map((g) => {
     const meta = GOAL_SOURCE_META[g.source as GoalSource];
+    const lastYear = g.end_year ?? g.year;
+    const auto = autoByPeriod.get(`${g.year}-${lastYear}`) ?? {};
     const current = g.source === "manual" ? Number(g.manual_value) : (auto[g.source as GoalSource] ?? 0);
     const target = Number(g.target);
     return {
       ...g,
+      lastYear,
+      inYear: g.year <= year && year <= lastYear,
       current,
       remaining: Math.max(0, target - current),
       ratio: target > 0 ? Math.min(1, Math.max(0, current / target)) : 0,

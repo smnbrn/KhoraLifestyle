@@ -13,7 +13,18 @@ function formatValue(value: number, format: "currency" | "number") {
 }
 
 /** Anello di avanzamento verso un obiettivo: al centro il valore, sotto quanto manca. */
-export function GoalRing({ goal, index = 0, size = 96 }: { goal: GoalProgress; index?: number; size?: number }) {
+export function GoalRing({
+  goal,
+  index = 0,
+  size = 96,
+  showPeriod = false,
+}: {
+  goal: GoalProgress;
+  index?: number;
+  size?: number;
+  /** mostra l'anno (o gli anni) dell'obiettivo: utile quando si vedono gli obiettivi di più anni insieme */
+  showPeriod?: boolean;
+}) {
   const stroke = 6;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -55,6 +66,11 @@ export function GoalRing({ goal, index = 0, size = 96 }: { goal: GoalProgress; i
           su {formatValue(Number(goal.target), goal.format)}
           {goal.suffix ? ` ${goal.suffix}` : ""}
         </p>
+        {(showPeriod || goal.lastYear > goal.year) && (
+          <p className="text-[10px] text-muted-foreground/70">
+            {goal.lastYear > goal.year ? `${goal.year}–${goal.lastYear}` : goal.year}
+          </p>
+        )}
       </div>
     </div>
   );

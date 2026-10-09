@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 
 import { phaseSchema } from "@/schemas/phase.schema";
 import { getCurrentUser } from "@/services/auth.service";
-import { createPhase, deletePhase, setPhaseCompleted, setPhaseRunning, updatePhase } from "@/services/phases.service";
+import {
+  createPhase,
+  deletePhase,
+  getPhaseParentCheck,
+  setPhaseCompleted,
+  setPhaseRunning,
+  syncProjectCompletion,
+  updatePhase,
+} from "@/services/phases.service";
 import type { ActionResult } from "@/lib/action-result";
 
 function refresh(projectId: string) {
@@ -15,7 +23,16 @@ function refresh(projectId: string) {
   revalidatePath("/calendario");
 }
 
-export async function savePhase(projectId: string, phaseId: string | null, input: unknown): Promise<ActionResult> {
+/**
+ * Crea o modifica una macro attività. Con `parentId` crea una micro attività
+ * dentro quella macro (una micro non può contenere altre micro).
+ */
+export async function savePhase(
+  projectId: string,
+  phaseId: string | null,
+  input: unknown,
+  parentId: string | null = null
+): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Sessione scaduta. Accedi di nuovo." };
 
@@ -28,11 +45,17 @@ export async function savePhase(projectId: string, phaseId: string | null, input
     duration_days: Number(parsed.data.durationDays),
   };
 
+  if (parentId && !phaseId) {
+    const ok = await getPhaseParentCheck(user.id, projectId, parentId);
+    if (!ok) return { success: false, error: "La macro attività scelta non esiste." };
+  }
+
   const { error } = phaseId
     ? await updatePhase(user.id, phaseId, values)
-    : await createPhase({ ...values, user_id: user.id, project_id: projectId });
+    : await createPhase({ ...values, user_id: user.id, project_id: projectId, parent_id: parentId });
   if (error) return { success: false, error: "Salvataggio non riuscito. Riprova." };
 
+  await syncProjectCompletion(user.id, projectId);
   refresh(projectId);
   return { success: true, data: undefined };
 }
@@ -42,6 +65,7 @@ export async function togglePhaseCompleted(projectId: string, phaseId: string, c
   if (!user) return { success: false, error: "Sessione scaduta. Accedi di nuovo." };
   const { error } = await setPhaseCompleted(user.id, phaseId, completed);
   if (error) return { success: false, error: "Aggiornamento non riuscito." };
+  await syncProjectCompletion(user.id, projectId);
   refresh(projectId);
   return { success: true, data: undefined };
 }
@@ -60,6 +84,7 @@ export async function removePhase(projectId: string, phaseId: string): Promise<A
   if (!user) return { success: false, error: "Sessione scaduta. Accedi di nuovo." };
   const { error } = await deletePhase(user.id, phaseId);
   if (error) return { success: false, error: "Eliminazione non riuscita." };
+  await syncProjectCompletion(user.id, projectId);
   refresh(projectId);
   return { success: true, data: undefined };
 }

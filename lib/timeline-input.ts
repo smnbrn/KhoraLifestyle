@@ -26,17 +26,27 @@ export type TimelineDbValues = {
 export function buildTimelineValues(
   input: { startDate?: string; durationDays?: string; timelineRunning: boolean },
   existing: ExistingState | null,
-  today: string = todayIso()
+  today: string = todayIso(),
+  options: { zeroDaysIfStartOnly?: boolean } = {}
 ): { error: string } | { values: TimelineDbValues; end: string | null; clearedDuration: boolean } {
   const start = input.startDate?.trim() ? input.startDate.trim() : null;
-  const days = input.durationDays?.trim() ? Number(input.durationDays.trim()) : null;
+  // Con la sola data di inizio (task) i giorni valgono 0: la scadenza coincide con l'inizio,
+  // così la voce compare nel calendario quel giorno. Il campo nel form resta vuoto.
+  const typedDays = input.durationDays?.trim() ? Number(input.durationDays.trim()) : null;
+  const days = typedDays == null && start && options.zeroDaysIfStartOnly ? 0 : typedDays;
 
   if (days != null && !start) return { error: "Per calcolare la scadenza imposta anche la data di inizio." };
 
   const base = existing ?? { timeline_running: true, frozen_since: null, frozen_days: 0 };
   const toggled = toggleTimeline(base, input.timelineRunning, today);
 
-  const values: TimelineDbValues = { start_date: start, duration_days: days, ...toggled };
+  const values: TimelineDbValues = {
+    start_date: start,
+    duration_days: days,
+    timeline_running: toggled.timeline_running,
+    frozen_since: toggled.frozen_since,
+    frozen_days: toggled.frozen_days,
+  };
   const end =
     days != null && start
       ? computeTimeline({ ...values, legacy_end: null }, today).end

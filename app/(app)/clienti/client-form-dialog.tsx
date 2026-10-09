@@ -26,9 +26,12 @@ type ClientDefaults = Partial<ClientInput> & { id?: string };
 
 export function ClientFormDialog({
   trigger,
+  onClose,
   client,
 }: {
   trigger: ReactNode;
+  /** chiamata quando la finestra si chiude (serve a chiudere anche il menu da cui è stata aperta) */
+  onClose?: () => void;
   client?: ClientDefaults;
 }) {
   const [open, setOpen] = useState(false);
@@ -45,6 +48,14 @@ export function ClientFormDialog({
     defaultValues: { country: "Italia", ...client },
   });
 
+  // Il form viene creato una volta sola: dopo un salvataggio i campi resterebbero fermi ai valori
+  // vecchi e un nuovo salvataggio li riscriverebbe. A ogni apertura lo riporto ai dati attuali.
+  function handleOpenChange(next: boolean) {
+    if (next) reset({ country: "Italia", ...client });
+    setOpen(next);
+    if (!next) onClose?.();
+  }
+
   function onSubmit(values: ClientInput) {
     startTransition(async () => {
       const formData = new FormData();
@@ -54,7 +65,7 @@ export function ClientFormDialog({
       const result = await saveClient(formData);
       if (result.success) {
         toast.success(isEdit ? "Cliente aggiornato" : "Cliente creato");
-        setOpen(false);
+        handleOpenChange(false);
         if (!isEdit) reset();
       } else {
         toast.error(result.error);
@@ -63,7 +74,7 @@ export function ClientFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>

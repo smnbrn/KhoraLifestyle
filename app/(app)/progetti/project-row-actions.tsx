@@ -38,6 +38,7 @@ export function ProjectRowActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const isArchived = Boolean(project.archived_at);
 
   function handleToggleArchive() {
@@ -67,7 +68,7 @@ export function ProjectRowActions({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="size-8">
             <MoreHorizontal />
@@ -76,6 +77,7 @@ export function ProjectRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <ProjectFormDialog
+            onClose={() => setMenuOpen(false)}
             clients={clients}
             project={projectToFormDefaults(project)}
             legacyEnd={project.duration_days == null ? project.expected_end_date : null}

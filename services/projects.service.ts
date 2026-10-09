@@ -162,14 +162,14 @@ export async function listOpenProjects(userId: string) {
 
 /** Progresso reale per un gruppo di progetti (macro attività pesate per durata, altrimenti task). */
 export async function getProjectsProgress(userId: string, projectIds: string[]) {
-  const result: Record<string, { percent: number; label: string }> = {};
+  const result: Record<string, { percent: number; label: string; allDone: boolean }> = {};
   if (projectIds.length === 0) return result;
 
   const supabase = await createClient();
   const [phasesRes, tasksRes] = await Promise.all([
     supabase
       .from("project_phases")
-      .select("project_id, completed, duration_days")
+      .select("project_id, completed, duration_days, parent_id")
       .eq("user_id", userId)
       .in("project_id", projectIds),
     supabase.from("tasks").select("project_id, status").eq("user_id", userId).in("project_id", projectIds),
@@ -178,8 +178,8 @@ export async function getProjectsProgress(userId: string, projectIds: string[]) 
   for (const id of projectIds) {
     const phases = (phasesRes.data ?? []).filter((p) => p.project_id === id);
     const tasks = (tasksRes.data ?? []).filter((t) => t.project_id === id);
-    const { percent, label } = projectProgress(phases, tasks);
-    result[id] = { percent, label };
+    const { percent, label, allDone } = projectProgress(phases, tasks);
+    result[id] = { percent, label, allDone };
   }
   return result;
 }

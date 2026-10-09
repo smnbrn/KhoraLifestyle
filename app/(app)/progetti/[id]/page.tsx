@@ -25,7 +25,7 @@ import { ProjectPeople, type InvolvedPerson } from "./project-people";
 import { listPhases } from "@/services/phases.service";
 import { listContactsForSelect, listProjectContacts } from "@/services/contacts.service";
 import { computeTimeline } from "@/lib/timeline";
-import { projectProgress } from "@/lib/progress";
+import { isProjectClosed, projectProgress } from "@/lib/progress";
 import { projectToFormDefaults } from "@/lib/project-defaults";
 import { todayIso } from "@/lib/dates";
 import { createProjectNote, removeProjectNote, setProjectRunning } from "./actions";
@@ -61,7 +61,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const timeline = computeTimeline({ ...project, legacy_end: project.expected_end_date }, today);
   const progress = projectProgress(phases, tasks);
   const projectProfit = financials.profit ?? 0;
-  const closed = project.status === "completed" || project.status === "cancelled";
+  // chiuso = stato completato/annullato OPPURE tutte le macro attività completate
+  const closed = isProjectClosed(project.status, progress);
+  const done = project.status === "completed" || progress.allDone;
 
   const phaseViews: PhaseView[] = phases.map((ph) => {
     const tl = computeTimeline({ ...ph, legacy_end: null }, today);
@@ -75,6 +77,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       end: tl.end as string,
       frozenTotal: tl.frozenTotal,
       late: tl.end != null && tl.end < today,
+      parentId: ph.parent_id,
     };
   });
 
@@ -142,7 +145,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             timeline={timeline}
             progressPercent={progress.percent}
             progressLabel={progress.label}
-            completed={project.status === "completed"}
+            completed={done}
           />
         </CardContent>
       </Card>
@@ -180,7 +183,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Gantt e macro attività</CardTitle>
+          <CardTitle className="text-base">Gantt, macro e micro attività</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <GanttChart phases={phases} />

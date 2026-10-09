@@ -32,23 +32,27 @@ function monthRange() {
 export default async function FinanzePage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; commissioniPage?: string }>;
+  searchParams: Promise<{ tab?: string; entratePage?: string; uscitePage?: string; commissioniPage?: string }>;
 }) {
   const params = await searchParams;
   const user = await getCurrentUser();
   const userId = user!.id;
-  const page = Number(params.page) || 1;
+  const entratePage = Number(params.entratePage) || 1;
+  const uscitePage = Number(params.uscitePage) || 1;
   const commissioniPage = Number(params.commissioniPage) || 1;
+  // la scheda aperta resta quella scelta anche cambiando pagina nelle tabelle
+  const activeTab = params.tab === "uscite" ? "uscite" : "entrate";
 
   await ensureDefaultCategories(userId);
   const { start, end } = monthRange();
 
   const year = new Date().getFullYear();
-  const [summary, categories, { transactions, total, pageSize }, clients, projects, commissionsResult, financeGoals] =
+  const [summary, categories, incomeResult, expenseResult, clients, projects, commissionsResult, financeGoals] =
     await Promise.all([
       getFinanceSummary(userId, start, end),
       listCategories(userId),
-      listTransactions(userId, { page }),
+      listTransactions(userId, { type: "income", page: entratePage }),
+      listTransactions(userId, { type: "expense", page: uscitePage }),
       listActiveClientsForSelect(userId),
       listActiveProjectsForSelect(userId),
       listCommissions(userId, { page: commissioniPage }),
@@ -60,7 +64,7 @@ export default async function FinanzePage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
         <h1 className="text-2xl font-semibold text-foreground">Finanze</h1>
-        <p className="text-sm text-muted-foreground">Entrate, uscite e commissioni.</p>
+        <p className="text-sm text-muted-foreground">Entrate e uscite (con le commissioni).</p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/finanze/investimenti">
@@ -103,56 +107,96 @@ export default async function FinanzePage({
 
       <GoalsPanel goals={financeGoals} year={year} category="finance" emptyText="Aggiungi un obiettivo di guadagno (es. 25.000 € l'anno) per vedere quanto manca." />
 
-      <Tabs defaultValue="movimenti">
+      <Tabs defaultValue={activeTab}>
         <TabsList>
-          <TabsTrigger value="movimenti">Movimenti</TabsTrigger>
-          <TabsTrigger value="commissioni">Commissioni</TabsTrigger>
+          <TabsTrigger value="entrate">Entrate</TabsTrigger>
+          <TabsTrigger value="uscite">Uscite</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="movimenti" className="space-y-4">
+        <TabsContent value="entrate" className="space-y-4">
           <div className="flex justify-end">
             <TransactionFormDialog
               categories={categories}
               clients={clients}
               projects={projects}
+              defaultType="income"
               trigger={
                 <Button>
                   <Plus />
-                  Nuovo movimento
+                  Nuova entrata
                 </Button>
               }
             />
           </div>
           <Card className="py-0">
-            <TransactionsTable transactions={transactions} />
-            <TablePagination page={page} pageSize={pageSize} total={total} basePath="/finanze" searchParams={params} />
+            <TransactionsTable transactions={incomeResult.transactions} />
+            <TablePagination
+              page={entratePage}
+              pageSize={incomeResult.pageSize}
+              total={incomeResult.total}
+              basePath="/finanze"
+              searchParams={{ ...params, tab: "entrate" }}
+              paramName="entratePage"
+            />
           </Card>
         </TabsContent>
 
-        <TabsContent value="commissioni" className="space-y-4">
-          <div className="flex justify-end">
-            <CommissionFormDialog
-              clients={clients}
-              projects={projects}
-              trigger={
-                <Button>
-                  <Plus />
-                  Nuova commissione
-                </Button>
-              }
-            />
+        <TabsContent value="uscite" className="space-y-8">
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <TransactionFormDialog
+                categories={categories}
+                clients={clients}
+                projects={projects}
+                defaultType="expense"
+                trigger={
+                  <Button>
+                    <Plus />
+                    Nuova uscita
+                  </Button>
+                }
+              />
+            </div>
+            <Card className="py-0">
+              <TransactionsTable transactions={expenseResult.transactions} />
+              <TablePagination
+                page={uscitePage}
+                pageSize={expenseResult.pageSize}
+                total={expenseResult.total}
+                basePath="/finanze"
+                searchParams={{ ...params, tab: "uscite" }}
+                paramName="uscitePage"
+              />
+            </Card>
           </div>
-          <Card className="py-0">
-            <CommissionsTable commissions={commissionsResult.commissions} />
-            <TablePagination
-              page={commissioniPage}
-              pageSize={commissionsResult.pageSize}
-              total={commissionsResult.total}
-              basePath="/finanze"
-              searchParams={params}
-              paramName="commissioniPage"
-            />
-          </Card>
+
+          {/* le commissioni da pagare generano un'uscita: stanno qui, sotto le uscite */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-medium text-muted-foreground">Commissioni</h2>
+              <CommissionFormDialog
+                clients={clients}
+                projects={projects}
+                trigger={
+                  <Button variant="outline">
+                    <Plus />
+                    Nuova commissione
+                  </Button>
+                }
+              />
+            </div>
+            <Card className="py-0">
+              <CommissionsTable commissions={commissionsResult.commissions} />
+              <TablePagination
+                page={commissioniPage}
+                pageSize={commissionsResult.pageSize}
+                total={commissionsResult.total}
+                basePath="/finanze"
+                searchParams={{ ...params, tab: "uscite" }}
+                paramName="commissioniPage"
+              />
+            </Card>
+          </section>
         </TabsContent>
       </Tabs>
     </div>

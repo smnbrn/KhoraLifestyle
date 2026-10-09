@@ -31,6 +31,7 @@ export function ClientRowActions({ client }: { client: ClientListItem }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const isArchived = Boolean(client.archived_at);
 
   function handleToggleArchive() {
@@ -60,7 +61,7 @@ export function ClientRowActions({ client }: { client: ClientListItem }) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="size-8">
             <MoreHorizontal />
@@ -69,6 +70,7 @@ export function ClientRowActions({ client }: { client: ClientListItem }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <ClientFormDialog
+            onClose={() => setMenuOpen(false)}
             client={{
               id: client.id,
               name: client.name,

@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeleteButton, QuickForm, type QuickField } from "@/components/shared/quick-form";
 import { RENT_FREQUENCY } from "@/lib/constants/second-brain";
-import { diffDays, todayIso } from "@/lib/dates";
+import { addDays, diffDays, todayIso } from "@/lib/dates";
+import { rentOccurrencesInRange } from "@/lib/rent";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getCurrentUser } from "@/services/auth.service";
 import { listDeadlines, listRentals, rentToMonthly } from "@/services/life.service";
@@ -25,6 +26,14 @@ const rentalFields: QuickField[] = [
     type: "select",
     width: "half",
     options: Object.entries(RENT_FREQUENCY).map(([value, label]) => ({ value, label })),
+  },
+  {
+    name: "rent_day",
+    label: "Giorno del mese in cui incassi (1-31)",
+    type: "number",
+    step: "1",
+    width: "half",
+    placeholder: "es. 5",
   },
   { name: "contract_start", label: "Inizio contratto", type: "date", width: "half" },
   { name: "contract_end", label: "Fine contratto", type: "date", width: "half" },
@@ -67,6 +76,7 @@ export default async function AffittiPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {rentals.map((r) => {
           const toEnd = r.contract_end ? diffDays(today, r.contract_end) : null;
+          const nextIncome = r.rent_day ? rentOccurrencesInRange(r, today, addDays(today, 400))[0] : undefined;
           return (
             <Card key={r.id}>
               <CardHeader className="flex-row items-start justify-between gap-3">
@@ -85,6 +95,7 @@ export default async function AffittiPage() {
                       imu_amount: r.imu_amount,
                       rent_amount: r.rent_amount,
                       rent_frequency: r.rent_frequency,
+                      rent_day: r.rent_day,
                       contract_start: r.contract_start,
                       contract_end: r.contract_end,
                       notes: r.notes,
@@ -102,13 +113,26 @@ export default async function AffittiPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Affitto</p>
                     <p className="tabular">
                       {formatCurrency(Number(r.rent_amount))}{" "}
                       <span className="text-xs text-muted-foreground">{RENT_FREQUENCY[r.rent_frequency]}</span>
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Incasso</p>
+                    {r.rent_day ? (
+                      <p>
+                        {r.rent_frequency === "monthly" ? `il ${r.rent_day} di ogni mese` : `il giorno ${r.rent_day}`}
+                        {nextIncome && (
+                          <span className="block text-xs text-muted-foreground">prossimo: {formatDate(nextIncome)}</span>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">—</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">IMU annua</p>

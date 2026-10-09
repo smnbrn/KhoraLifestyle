@@ -96,7 +96,11 @@ export function toggleTimeline(
   running: boolean,
   today: string = todayIso()
 ): Pick<TimelineFields, "timeline_running" | "frozen_since" | "frozen_days"> {
-  if (running === f.timeline_running) return { ...f };
+  // Restituisco SOLO i tre campi del blocco: se `f` è una riga con altri campi (es. duration_days)
+  // non devono finire nel risultato, altrimenti sovrascriverebbero i valori nuovi di chi lo usa.
+  if (running === f.timeline_running) {
+    return { timeline_running: f.timeline_running, frozen_since: f.frozen_since, frozen_days: f.frozen_days };
+  }
   if (running) {
     // riparte: chiudo il periodo di blocco e lo sommo
     const closed = f.frozen_since ? Math.max(0, diffDays(today, f.frozen_since)) : 0;

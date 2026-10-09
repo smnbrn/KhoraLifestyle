@@ -37,7 +37,13 @@ export default async function LavoroPage() {
   const rows = projects.map((p) => ({ project: p, timeline: computeTimeline(p, today) }));
   const frozen = rows.filter((r) => r.timeline.frozen).length;
   const running = rows.filter((r) => p_inProgress(r.project.status) && !r.timeline.frozen).length;
-  const late = rows.filter((r) => r.timeline.hasDuration && r.timeline.daysToEnd != null && r.timeline.daysToEnd < 0).length;
+  const late = rows.filter(
+    (r) =>
+      r.timeline.hasDuration &&
+      r.timeline.daysToEnd != null &&
+      r.timeline.daysToEnd < 0 &&
+      !progress[r.project.id]?.allDone // finito (tutte le macro completate) = non in ritardo
+  ).length;
 
   const stats = [
     { label: "Clienti acquisiti", value: `${newClients ?? 0}`, hint: `nel ${year} · ${activeClients ?? 0} attivi`, icon: Users },
@@ -84,10 +90,16 @@ export default async function LavoroPage() {
                 <span className="truncate text-sm font-medium">{project.name}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {timeline.frozen ? "Congelato · " : ""}
-                  {timeStatusText(timeline, false)}
+                  {timeStatusText(timeline, !!progress[project.id]?.allDone)}
                 </span>
               </div>
-              <DualProgress timeline={timeline} progressPercent={progress[project.id]?.percent ?? 0} progressLabel={progress[project.id]?.label} compact />
+              <DualProgress
+                timeline={timeline}
+                progressPercent={progress[project.id]?.percent ?? 0}
+                progressLabel={progress[project.id]?.label}
+                completed={!!progress[project.id]?.allDone}
+                compact
+              />
             </Link>
           ))}
         </CardContent>

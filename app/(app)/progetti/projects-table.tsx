@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { computeTimeline } from "@/lib/timeline";
 import { todayIso } from "@/lib/dates";
+import { isProjectClosed } from "@/lib/progress";
 import { DualProgress, timeStatusText } from "@/components/shared/time-progress";
 import { PROJECT_STATUS, PRIORITY } from "@/lib/constants";
 import { ProjectRowActions } from "./project-row-actions";
@@ -30,7 +31,7 @@ export function ProjectsTable({
 }: {
   projects: ProjectListItem[];
   clients: { id: string; name: string }[];
-  progress: Record<string, { percent: number; label: string }>;
+  progress: Record<string, { percent: number; label: string; allDone: boolean }>;
 }) {
   const today = todayIso();
 
@@ -59,7 +60,9 @@ export function ProjectsTable({
       <TableBody>
         {projects.map((project) => {
           const tl = computeTimeline({ ...project, legacy_end: project.expected_end_date }, today);
-          const closed = project.status === "completed" || project.status === "cancelled";
+          // chiuso = stato completato/annullato OPPURE tutte le macro attività completate
+          const closed = isProjectClosed(project.status, progress[project.id]);
+          const done = project.status === "completed" || !!progress[project.id]?.allDone;
           const pr = progress[project.id]?.percent ?? 0;
           return (
           <TableRow key={project.id}>
@@ -96,7 +99,7 @@ export function ProjectsTable({
                   <span className={!closed && tl.end < today ? "font-medium text-destructive" : "text-muted-foreground"}>
                     {formatDate(tl.end)}
                   </span>
-                  <p className="text-xs text-muted-foreground">{timeStatusText(tl, project.status === "completed")}</p>
+                  <p className="text-xs text-muted-foreground">{timeStatusText(tl, done)}</p>
                 </div>
               ) : (
                 <span className="text-muted-foreground">—</span>
@@ -106,7 +109,9 @@ export function ProjectsTable({
               {tl.end && !closed ? (
                 <DualProgress timeline={tl} progressPercent={pr} compact />
               ) : (
-                <span className="text-xs text-muted-foreground">{closed ? "—" : `${pr}% completato`}</span>
+                <span className="text-xs text-muted-foreground">
+                  {done ? "Completato" : closed ? "—" : `${pr}% completato`}
+                </span>
               )}
             </TableCell>
             <TableCell className="tabular text-right">{formatCurrency(project.project_value)}</TableCell>

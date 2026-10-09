@@ -31,12 +31,15 @@ type TaskDefaults = Partial<TaskInput> & { id?: string };
 
 export function TaskFormDialog({
   trigger,
+  onClose,
   task,
   clients,
   projects,
   legacyEnd,
 }: {
   trigger: ReactNode;
+  /** chiamata quando la finestra si chiude (serve a chiudere anche il menu da cui è stata aperta) */
+  onClose?: () => void;
   task?: TaskDefaults;
   clients: { id: string; name: string }[];
   projects: { id: string; name: string }[];
@@ -58,6 +61,14 @@ export function TaskFormDialog({
     defaultValues: { status: "todo", priority: "medium", timelineRunning: true, ...task },
   });
 
+  // Il form viene creato una volta sola: dopo un salvataggio i campi resterebbero fermi ai valori
+  // vecchi e un nuovo salvataggio li riscriverebbe. A ogni apertura lo riporto ai dati attuali.
+  function handleOpenChange(next: boolean) {
+    if (next) reset({ status: "todo", priority: "medium", timelineRunning: true, ...task });
+    setOpen(next);
+    if (!next) onClose?.();
+  }
+
   function onSubmit(values: TaskInput) {
     startTransition(async () => {
       const formData = new FormData();
@@ -69,7 +80,7 @@ export function TaskFormDialog({
       const result = await saveTask(formData);
       if (result.success) {
         toast.success(isEdit ? "Task aggiornato" : "Task creato");
-        setOpen(false);
+        handleOpenChange(false);
         if (!isEdit) reset();
       } else {
         toast.error(result.error);
@@ -78,7 +89,7 @@ export function TaskFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>

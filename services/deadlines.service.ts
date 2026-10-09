@@ -2,7 +2,8 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { computeTimeline } from "@/lib/timeline";
-import { todayIso } from "@/lib/dates";
+import { addDays, todayIso } from "@/lib/dates";
+import { rentOccurrencesInRange } from "@/lib/rent";
 import { listOpenPhases } from "@/services/phases.service";
 import { listDeadlines } from "@/services/life.service";
 
@@ -22,32 +23,46 @@ export type DeadlineItem = {
   href: string;
   overdue: boolean;
   frozen?: boolean;
+  /** già completata / pagata / fatta (c'è solo con includeCompleted) */
+  done?: boolean;
+  /** data di inizio, se la scadenza ha un tempo "a giorni": serve a capire se è "in corso" */
+  start?: string;
 };
 
-export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> {
+/**
+ * Tutte le scadenze APERTE (default: usato da notifiche, Home e contatori).
+ * Con `includeCompleted` ci sono anche quelle completate, marcate `done`: le usa il calendario,
+ * che le deve continuare a mostrare (in verde).
+ */
+export async function collectDeadlines(
+  userId: string,
+  options: { includeCompleted?: boolean } = {}
+): Promise<DeadlineItem[]> {
+  const includeCompleted = !!options.includeCompleted;
   const supabase = await createClient();
   const today = todayIso();
 
+  let tasksQuery = supabase
+    .from("tasks")
+    .select("id, title, status, due_date, start_date, duration_days, timeline_running, frozen_since, frozen_days, projects(name)")
+    .eq("user_id", userId);
+  if (!includeCompleted) tasksQuery = tasksQuery.neq("status", "completed");
+
   const [tasksRes, projectsRes, phases, lifeDeadlines, rentalsRes, tripsRes, invoicesRes] = await Promise.all([
-    supabase
-      .from("tasks")
-      .select("id, title, due_date, start_date, duration_days, timeline_running, frozen_since, frozen_days, projects(name)")
-      .eq("user_id", userId)
-      .neq("status", "completed"),
+    tasksQuery,
     supabase
       .from("projects")
-      .select("id, name, expected_end_date, start_date, duration_days, timeline_running, frozen_since, frozen_days")
+      .select("id, name, status, expected_end_date, start_date, duration_days, timeline_running, frozen_since, frozen_days")
       .eq("user_id", userId)
       .is("archived_at", null)
-      .in("status", ["planned", "in_progress", "paused"]),
-    listOpenPhases(userId),
-    listDeadlines(userId),
+      .in("status", includeCompleted ? ["planned", "in_progress", "paused", "completed"] : ["planned", "in_progress", "paused"]),
+    listOpenPhases(userId, includeCompleted),
+    listDeadlines(userId, {}, includeCompleted),
     supabase
       .from("rentals")
-      .select("id, name, contract_end")
+      .select("id, name, contract_start, contract_end, rent_day, rent_frequency, rent_amount")
       .eq("user_id", userId)
-      .is("archived_at", null)
-      .not("contract_end", "is", null),
+      .is("archived_at", null),
     supabase
       .from("trips")
       .select("id, name, destination, start_date, status")
@@ -55,9 +70,9 @@ export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> 
       .not("start_date", "is", null),
     supabase
       .from("invoices")
-      .select("id, invoice_number, due_date")
+      .select("id, invoice_number, due_date, status")
       .eq("user_id", userId)
-      .in("status", ["issued", "partially_paid"])
+      .in("status", includeCompleted ? ["issued", "partially_paid", "paid"] : ["issued", "partially_paid"])
       .not("due_date", "is", null),
   ]);
 
@@ -65,7 +80,25 @@ export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> 
 
   for (const t of tasksRes.data ?? []) {
     const tl = computeTimeline({ ...t, legacy_end: t.due_date }, today);
-    if (!tl.end) continue;
+    const done = t.status === "completed";
+    if (!tl.end) {
+      // Task con la sola data di inizio (niente durata, niente scadenza): non è una scadenza,
+      // quindi resta fuori da notifiche e contatori, ma il calendario la mostra il giorno di inizio.
+      if (includeCompleted && t.start_date) {
+        items.push({
+          id: `task-${t.id}`,
+          type: "task",
+          label: t.title,
+          sublabel: ["Inizio", t.projects?.name].filter(Boolean).join(" · "),
+          date: t.start_date,
+          href: "/task",
+          overdue: false,
+          done,
+          start: t.start_date,
+        });
+      }
+      continue;
+    }
     items.push({
       id: `task-${t.id}`,
       type: "task",
@@ -73,14 +106,17 @@ export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> 
       sublabel: t.projects?.name,
       date: tl.end,
       href: "/task",
-      overdue: tl.end < today,
+      overdue: !done && tl.end < today,
       frozen: tl.frozen,
+      done,
+      start: tl.start ?? undefined,
     });
   }
 
   for (const p of projectsRes.data ?? []) {
     const tl = computeTimeline({ ...p, legacy_end: p.expected_end_date }, today);
     if (!tl.end) continue;
+    const done = p.status === "completed";
     items.push({
       id: `project-${p.id}`,
       type: "project",
@@ -88,8 +124,10 @@ export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> 
       sublabel: "Consegna progetto",
       date: tl.end,
       href: `/progetti/${p.id}`,
-      overdue: tl.end < today,
+      overdue: !done && tl.end < today,
       frozen: tl.frozen,
+      done,
+      start: tl.start ?? undefined,
     });
   }
 
@@ -103,37 +141,66 @@ export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> 
       sublabel: ph.projects?.name,
       date: tl.end,
       href: `/progetti/${ph.project_id}`,
-      overdue: tl.end < today,
+      overdue: !ph.completed && tl.end < today,
       frozen: tl.frozen,
+      done: ph.completed,
+      start: tl.start ?? undefined,
     });
   }
 
   for (const d of lifeDeadlines) {
     const isRental = !!d.rental_id;
+    // stesso calcolo dei progetti: inizio + giorni + giorni congelati (se non c'è, vale la data fissa)
+    const tl = computeTimeline({ ...d, legacy_end: d.due_date }, today);
+    const date = tl.end ?? d.due_date;
+    const done = !!d.completed_at;
     items.push({
       id: `${isRental ? "rental" : "vehicle"}-deadline-${d.id}`,
       type: isRental ? "rental" : "vehicle",
       label: d.title,
       sublabel: (isRental ? d.rentals?.name : d.vehicles?.name) ?? undefined,
-      date: d.due_date,
+      date,
       href: isRental ? "/vita/affitti" : "/vita/veicoli",
-      overdue: d.due_date < today,
+      overdue: !done && date < today,
+      frozen: tl.hasDuration ? tl.frozen : undefined,
+      done,
+      start: tl.hasDuration ? (tl.start ?? undefined) : undefined,
     });
   }
 
   for (const r of rentalsRes.data ?? []) {
-    items.push({
-      id: `rental-contract-${r.id}`,
-      type: "rental",
-      label: "Scadenza contratto",
-      sublabel: r.name,
-      date: r.contract_end as string,
-      href: "/vita/affitti",
-      overdue: (r.contract_end as string) < today,
-    });
+    if (r.contract_end) {
+      items.push({
+        id: `rental-contract-${r.id}`,
+        type: "rental",
+        label: "Scadenza contratto",
+        sublabel: r.name,
+        date: r.contract_end,
+        href: "/vita/affitti",
+        overdue: r.contract_end < today,
+      });
+    }
+    // prossimo incasso dell'affitto (giorno del mese scelto): solo il prossimo, da oggi in poi
+    if (r.rent_day) {
+      const next = rentOccurrencesInRange(r, today, addDays(today, 400))[0];
+      if (next) {
+        items.push({
+          id: `rental-income-${r.id}-${next}`,
+          type: "rental",
+          label: "Incasso affitto",
+          sublabel: r.name,
+          date: next,
+          href: "/vita/affitti",
+          overdue: false,
+        });
+      }
+    }
   }
 
   for (const t of tripsRes.data ?? []) {
+    const done = t.status === "done";
+    // fuori dal calendario un viaggio già fatto non è più una scadenza
+    if (done && !includeCompleted) continue;
     items.push({
       id: `trip-${t.id}`,
       type: "trip",
@@ -142,6 +209,7 @@ export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> 
       date: t.start_date as string,
       href: `/vita/viaggi/${t.id}`,
       overdue: false,
+      done,
     });
   }
 
@@ -152,9 +220,37 @@ export async function collectDeadlines(userId: string): Promise<DeadlineItem[]> 
       label: `Fattura ${i.invoice_number}`,
       date: i.due_date as string,
       href: `/fatture/${i.id}`,
-      overdue: (i.due_date as string) < today,
+      overdue: i.status !== "paid" && (i.due_date as string) < today,
+      done: i.status === "paid",
     });
   }
 
   return items.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Incassi dell'affitto (giorno del mese) che cadono in [start, end): per il calendario mensile. */
+export async function collectRentIncome(userId: string, start: string, end: string): Promise<DeadlineItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("rentals")
+    .select("id, name, contract_start, contract_end, rent_day, rent_frequency, rent_amount")
+    .eq("user_id", userId)
+    .is("archived_at", null)
+    .not("rent_day", "is", null);
+
+  const items: DeadlineItem[] = [];
+  for (const r of data ?? []) {
+    for (const date of rentOccurrencesInRange(r, start, addDays(end, -1))) {
+      items.push({
+        id: `rental-income-${r.id}-${date}`,
+        type: "rental",
+        label: "Incasso affitto",
+        sublabel: r.name,
+        date,
+        href: "/vita/affitti",
+        overdue: false,
+      });
+    }
+  }
+  return items;
 }

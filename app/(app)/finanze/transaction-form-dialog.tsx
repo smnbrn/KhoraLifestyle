@@ -34,11 +34,14 @@ export function TransactionFormDialog({
   categories: initialCategories,
   clients,
   projects,
+  defaultType = "expense",
 }: {
   trigger: ReactNode;
   categories: Category[];
   clients: { id: string; name: string }[];
   projects: { id: string; name: string }[];
+  /** tipo preselezionato: "income" dalla scheda Entrate, "expense" dalla scheda Uscite */
+  defaultType?: "income" | "expense";
 }) {
   const [open, setOpen] = useState(false);
   const [categories, setCategories] = useState(initialCategories);
@@ -55,7 +58,7 @@ export function TransactionFormDialog({
     formState: { errors },
   } = useForm<TransactionInput>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: { type: "expense", transactionDate: new Date().toISOString().slice(0, 10) },
+    defaultValues: { type: defaultType, transactionDate: new Date().toISOString().slice(0, 10) },
   });
 
   const type = watch("type");

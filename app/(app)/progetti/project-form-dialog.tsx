@@ -38,11 +38,14 @@ type ProjectDefaults = Partial<ProjectInput> & { id?: string };
 
 export function ProjectFormDialog({
   trigger,
+  onClose,
   project,
   clients,
   legacyEnd,
 }: {
   trigger: ReactNode;
+  /** chiamata quando la finestra si chiude (serve a chiudere anche il menu da cui è stata aperta) */
+  onClose?: () => void;
   project?: ProjectDefaults;
   clients: { id: string; name: string }[];
   legacyEnd?: string | null;
@@ -65,6 +68,17 @@ export function ProjectFormDialog({
 
   const { fields, append, remove } = useFieldArray({ control, name: "customFields" });
 
+  // Il form viene creato una volta sola: se nel frattempo il progetto cambia (giorni, interruttore
+  // scorre/congelato, macro attività...) i campi resterebbero fermi ai valori vecchi e un nuovo
+  // salvataggio li riscriverebbe. Per questo a ogni apertura lo riporto ai dati attuali del progetto.
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      reset({ status: "planned", priority: "medium", customFields: [], timelineRunning: true, ...project });
+    }
+    setOpen(next);
+    if (!next) onClose?.();
+  }
+
   function onSubmit(values: ProjectInput) {
     startTransition(async () => {
       const formData = new FormData();
@@ -76,7 +90,7 @@ export function ProjectFormDialog({
       const result = await saveProject(formData);
       if (result.success) {
         toast.success(isEdit ? "Progetto aggiornato" : "Progetto creato");
-        setOpen(false);
+        handleOpenChange(false);
         if (!isEdit) reset();
       } else {
         toast.error(result.error);
@@ -85,7 +99,7 @@ export function ProjectFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>

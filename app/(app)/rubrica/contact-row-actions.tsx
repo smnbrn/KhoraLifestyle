@@ -31,6 +31,7 @@ export function ContactRowActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const archived = Boolean(contact.archived_at);
 
   function run(action: () => Promise<{ success: boolean } & { error?: string }>, ok: string) {
@@ -48,7 +49,7 @@ export function ContactRowActions({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="size-8">
             <MoreHorizontal />
@@ -57,6 +58,7 @@ export function ContactRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <ContactFormDialog
+            onClose={() => setMenuOpen(false)}
             clients={clients}
             contact={{
               id: contact.id,

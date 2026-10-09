@@ -40,7 +40,7 @@ export async function saveTask(formData: FormData): Promise<ActionResult<{ id: s
   const taskId = formData.get("id") as string | null;
 
   const existing = taskId ? await getTaskTimelineState(user.id, taskId) : null;
-  const timeline = buildTimelineValues(parsed.data, existing);
+  const timeline = buildTimelineValues(parsed.data, existing, todayIso(), { zeroDaysIfStartOnly: true });
   if ("error" in timeline) return { success: false, error: timeline.error };
 
   const values = {

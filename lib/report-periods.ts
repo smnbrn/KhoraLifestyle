@@ -8,6 +8,7 @@ export type PeriodKey =
   | "questo-trimestre"
   | "questo-anno"
   | "anno-precedente"
+  | "sempre"
   | "personalizzato";
 
 export const PERIOD_LABELS: Record<PeriodKey, string> = {
@@ -16,12 +17,16 @@ export const PERIOD_LABELS: Record<PeriodKey, string> = {
   "questo-trimestre": "Questo trimestre",
   "questo-anno": "Quest'anno",
   "anno-precedente": "Anno precedente",
+  sempre: "Sempre",
   personalizzato: "Personalizzato",
 };
 
 function iso(date: Date) {
   return date.toISOString().slice(0, 10);
 }
+
+/** "Sempre": da prima di qualsiasi dato registrato fino a oggi. */
+export const ALWAYS_START = "1900-01-01";
 
 export function resolvePeriod(
   period: string | undefined,
@@ -48,6 +53,9 @@ export function resolvePeriod(
     }
     case "anno-precedente": {
       return { start: `${year - 1}-01-01`, end: `${year - 1}-12-31`, key: "anno-precedente" };
+    }
+    case "sempre": {
+      return { start: ALWAYS_START, end: iso(now), key: "sempre" };
     }
     case "personalizzato": {
       return {

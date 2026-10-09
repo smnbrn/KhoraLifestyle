@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, CheckSquare, Heading1, Plus, Table2, Trash2, Type, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChartGantt, CheckSquare, CornerDownRight, Heading1, Plus, Table2, Trash2, Type, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { GanttChart } from "@/components/shared/gantt-chart";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   COLUMN_TYPE_LABEL,
   asChecklist,
+  asGantt,
+  ganttRows,
   asTable,
   asText,
   columnSum,
@@ -21,13 +24,14 @@ import {
   type CellValue,
   type ChecklistContent,
   type ColumnType,
+  type GanttContent,
   type TableContent,
   type TextContent,
 } from "@/lib/page-blocks";
 import type { Json } from "@/types/database.types";
 import { addBlock, removeBlock, saveBlock, saveBlockOrder } from "../actions";
 
-export type EditorBlock = { id: string; type: "heading" | "text" | "checklist" | "table"; content: Json };
+export type EditorBlock = { id: string; type: "heading" | "text" | "checklist" | "table" | "gantt"; content: Json };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -335,12 +339,133 @@ function TableBlock({ block, onState }: { block: EditorBlock; onState: (s: SaveS
   );
 }
 
+// ---------------------------------------------------------------- gantt
+function GanttBlock({ block, onState }: { block: EditorBlock; onState: (s: SaveState) => void }) {
+  const [gantt, setGantt] = useState<GanttContent>(() => asGantt(block.content));
+  const schedule = useAutosave(block.id, onState);
+
+  function update(next: GanttContent) {
+    // la prima riga è sempre una macro attività
+    if (next.items.length > 0 && next.items[0].micro) {
+      next = { ...next, items: next.items.map((i, idx) => (idx === 0 ? { ...i, micro: false } : i)) };
+    }
+    setGantt(next);
+    schedule(next as unknown as Json);
+  }
+
+  function patch(id: string, values: Partial<GanttContent["items"][number]>) {
+    update({ ...gantt, items: gantt.items.map((i) => (i.id === id ? { ...i, ...values } : i)) });
+  }
+
+  function addRow(micro: boolean) {
+    const last = [...gantt.items].reverse().find((i) => i.start);
+    update({
+      ...gantt,
+      items: [
+        ...gantt.items,
+        { id: newId(), name: "", start: last?.start ?? new Date().toISOString().slice(0, 10), days: 7, done: false, micro },
+      ],
+    });
+  }
+
+  const rows = ganttRows(gantt);
+
+  return (
+    <div className="space-y-3">
+      <Input
+        value={gantt.title}
+        onChange={(e) => update({ ...gantt, title: e.target.value })}
+        placeholder="Titolo del Gantt (facoltativo)"
+        className="h-8 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+      />
+
+      <div className="space-y-1.5">
+        {gantt.items.map((item, index) => (
+          <div key={item.id} className={cn("group flex flex-wrap items-center gap-2", item.micro && "pl-7")}>
+            <Checkbox checked={item.done} onCheckedChange={(v) => patch(item.id, { done: v === true })} aria-label="Completata" />
+            <Input
+              value={item.name}
+              onChange={(e) => patch(item.id, { name: e.target.value })}
+              placeholder={item.micro ? "Micro attività" : "Macro attività"}
+              className={cn(
+                "h-8 min-w-40 flex-1 px-2",
+                !item.micro && "font-medium",
+                item.done && "text-muted-foreground line-through"
+              )}
+            />
+            <Input
+              type="date"
+              value={item.start}
+              onChange={(e) => patch(item.id, { start: e.target.value })}
+              className="h-8 w-40 px-2"
+              aria-label="Data di inizio"
+            />
+            <Input
+              type="number"
+              min="0"
+              step="1"
+              inputMode="numeric"
+              value={item.days ?? ""}
+              onChange={(e) => patch(item.id, { days: e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))) })}
+              className="tabular h-8 w-20 px-2 text-right"
+              placeholder="giorni"
+              aria-label="Durata in giorni"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-8", item.micro ? "text-primary" : "text-muted-foreground")}
+              disabled={index === 0}
+              title={item.micro ? "Micro attività (clic per renderla macro)" : "Macro attività (clic per renderla micro della precedente)"}
+              onClick={() => patch(item.id, { micro: !item.micro })}
+            >
+              <CornerDownRight />
+              <span className="sr-only">Cambia tra macro e micro attività</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground opacity-0 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+              onClick={() => update({ ...gantt, items: gantt.items.filter((i) => i.id !== item.id) })}
+            >
+              <Trash2 />
+              <span className="sr-only">Elimina attività</span>
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => addRow(false)}>
+          <Plus />
+          Macro attività
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          disabled={gantt.items.length === 0}
+          onClick={() => addRow(true)}
+        >
+          <Plus />
+          Micro attività
+        </Button>
+      </div>
+
+      <div className="rounded-md border p-3">
+        <GanttChart phases={rows} emptyText="Dai a ogni attività una data di inizio e una durata in giorni: il diagramma compare qui." />
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- editor
 const ADD_OPTIONS = [
   { type: "heading", label: "Titolo", icon: Heading1 },
   { type: "text", label: "Testo", icon: Type },
   { type: "checklist", label: "Elenco spunte", icon: CheckSquare },
   { type: "table", label: "Tabella", icon: Table2 },
+  { type: "gantt", label: "Gantt", icon: ChartGantt },
 ] as const;
 
 export function PageEditor({ pageId, initialBlocks }: { pageId: string; initialBlocks: EditorBlock[] }) {
@@ -362,6 +487,7 @@ export function PageEditor({ pageId, initialBlocks }: { pageId: string; initialB
   function remove(id: string) {
     const block = blocks.find((b) => b.id === id);
     if (block?.type === "table" && !window.confirm("Eliminare questa tabella e tutti i suoi dati?")) return;
+    if (block?.type === "gantt" && !window.confirm("Eliminare questo Gantt e tutte le sue attività?")) return;
     setBlocks((b) => b.filter((x) => x.id !== id));
     startTransition(async () => {
       const result = await removeBlock(id);
@@ -395,7 +521,7 @@ export function PageEditor({ pageId, initialBlocks }: { pageId: string; initialB
 
       {blocks.length === 0 && (
         <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Pagina vuota: aggiungi un blocco qui sotto — un titolo, del testo, un elenco di spunte o una tabella.
+          Pagina vuota: aggiungi un blocco qui sotto — un titolo, del testo, un elenco di spunte, una tabella o un Gantt.
         </p>
       )}
 
@@ -419,6 +545,7 @@ export function PageEditor({ pageId, initialBlocks }: { pageId: string; initialB
           {block.type === "text" && <TextBlock block={block} heading={false} onState={onState} />}
           {block.type === "checklist" && <ChecklistBlock block={block} onState={onState} />}
           {block.type === "table" && <TableBlock block={block} onState={onState} />}
+          {block.type === "gantt" && <GanttBlock block={block} onState={onState} />}
         </div>
       ))}
 

@@ -26,13 +26,22 @@ export async function saveGoal(fd: FormData): Promise<ActionResult<{ id: string 
   if (!title) return { success: false, error: "Dai un nome all'obiettivo." };
   if (target == null || target <= 0) return { success: false, error: "L'obiettivo deve essere maggiore di zero." };
 
+  const year = Math.round(num(fd, "year") ?? currentYear());
+  const endRaw = num(fd, "end_year");
+  // "fino all'anno" è facoltativo: vuoto (o uguale all'anno iniziale) = obiettivo di un solo anno
+  const endYear = endRaw == null || Math.round(endRaw) === year ? null : Math.round(endRaw);
+  if (endYear != null && endYear < year) {
+    return { success: false, error: "L'ultimo anno non può essere prima dell'anno iniziale." };
+  }
+
   const values = {
     title,
     category: oneOf(fd, "category", CATEGORIES, GOAL_SOURCE_META[source].category),
     source,
     target,
     manual_value: num(fd, "manual_value") ?? 0,
-    year: Math.round(num(fd, "year") ?? currentYear()),
+    year,
+    end_year: endYear,
     show_on_home: fd.get("show_on_home") !== "no",
   };
 

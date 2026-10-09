@@ -54,27 +54,9 @@ export function SidebarNav({ onNavigate, pages = [] }: { onNavigate?: () => void
         const groupPages = pages.filter((p) => p.section === (group.key === "main" ? "general" : group.key));
         return (
           <div key={group.key} className="flex flex-col gap-0.5">
-            <div className="flex items-center justify-between px-3">
-              {group.label ? (
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{group.label}</span>
-              ) : (
-                <span />
-              )}
-              <PageDialog
-                defaultSection={group.key === "main" ? "general" : group.key}
-                onDone={onNavigate}
-                trigger={
-                  <button
-                    type="button"
-                    className="rounded p-0.5 text-muted-foreground/70 hover:bg-accent hover:text-foreground"
-                    title={`Nuova pagina${group.label ? ` in ${group.label}` : ""}`}
-                  >
-                    <Plus className="size-3.5" />
-                    <span className="sr-only">Nuova pagina</span>
-                  </button>
-                }
-              />
-            </div>
+            {group.label && (
+              <span className="px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{group.label}</span>
+            )}
             {group.items.map((item) => (
               <NavLink key={item.href} item={item} active={activeHref === item.href} onNavigate={onNavigate} />
             ))}
@@ -101,6 +83,19 @@ export function SidebarNav({ onNavigate, pages = [] }: { onNavigate?: () => void
         );
       })}
       <div className="space-y-0.5 border-t pt-3">
+        <PageDialog
+          defaultSection="general"
+          onDone={onNavigate}
+          trigger={
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+            >
+              <Plus className="size-4 shrink-0" />
+              <span className="truncate">Crea una nuova pagina</span>
+            </button>
+          }
+        />
         <NavLink item={SETTINGS_ITEM} active={activeHref === SETTINGS_ITEM.href} onNavigate={onNavigate} />
         <NavLink item={CREDITS_ITEM} active={activeHref === CREDITS_ITEM.href} onNavigate={onNavigate} />
       </div>

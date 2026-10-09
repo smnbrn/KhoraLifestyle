@@ -1,7 +1,8 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { addMonths, dayNumber, diffDays, todayIso } from "@/lib/dates";
+import { addDays, addMonths, dayNumber, diffDays, todayIso } from "@/lib/dates";
+import { computeTimeline, toggleTimeline } from "@/lib/timeline";
 import { RECURRENCE_MONTHS, RENT_FREQUENCY_MONTHS, type Recurrence } from "@/lib/constants/second-brain";
 import type { Database } from "@/types/database.types";
 
@@ -82,13 +83,14 @@ export async function deleteVehicle(userId: string, id: string) {
 // =====================================================================
 // SCADENZE (affitti + veicoli)
 // =====================================================================
-export async function listDeadlines(userId: string, owner: { rentalId?: string; vehicleId?: string } = {}) {
+export async function listDeadlines(
+  userId: string,
+  owner: { rentalId?: string; vehicleId?: string } = {},
+  includeCompleted = false
+) {
   const supabase = await createClient();
-  let query = supabase
-    .from("life_deadlines")
-    .select("*, rentals(name), vehicles(name)")
-    .eq("user_id", userId)
-    .is("completed_at", null);
+  let query = supabase.from("life_deadlines").select("*, rentals(name), vehicles(name)").eq("user_id", userId);
+  if (!includeCompleted) query = query.is("completed_at", null);
   if (owner.rentalId) query = query.eq("rental_id", owner.rentalId);
   if (owner.vehicleId) query = query.eq("vehicle_id", owner.vehicleId);
   const { data } = await query.order("due_date", { ascending: true });
@@ -126,18 +128,80 @@ export function nextDueDate(due: string, recurrence: Recurrence, today: string):
   return next;
 }
 
-/** "Pagato": una tantum si chiude, una ricorrente slitta al prossimo periodo. */
+/** Stato del tempo a giorni di una scadenza (serve a buildTimelineValues e all'interruttore). */
+export async function getDeadlineTimelineState(userId: string, id: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("life_deadlines")
+    .select("duration_days, timeline_running, frozen_since, frozen_days")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+  return data;
+}
+
+/** Sposta l'interruttore scorre/congelato di una scadenza e aggiorna la data di scadenza salvata. */
+export async function setDeadlineRunning(userId: string, id: string, running: boolean) {
+  const supabase = await createClient();
+  const { data: row, error } = await supabase
+    .from("life_deadlines")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .single();
+  if (error || !row) return { error: error ?? new Error("Scadenza non trovata") };
+
+  const today = todayIso();
+  const next = toggleTimeline(row, running, today);
+  const updated = { ...row, ...next };
+  const end = computeTimeline({ ...updated, legacy_end: updated.due_date }, today).end;
+  return supabase
+    .from("life_deadlines")
+    .update({ ...next, ...(row.start_date && row.duration_days != null && end ? { due_date: end } : {}) })
+    .eq("user_id", userId)
+    .eq("id", id);
+}
+
+/** Riapre una scadenza già chiusa (toglie la data di completamento). */
+export async function reopenDeadline(userId: string, id: string) {
+  const supabase = await createClient();
+  return supabase.from("life_deadlines").update({ completed_at: null }).eq("user_id", userId).eq("id", id);
+}
+
+/**
+ * "Pagato": una tantum si chiude, una ricorrente riparte.
+ *   - a data fissa: slitta al prossimo periodo (mensile, trimestrale, annuale)
+ *   - a giorni (inizio + durata): il nuovo ciclo parte dalla scadenza appena pagata e dura gli stessi giorni
+ */
 export async function markDeadlinePaid(userId: string, id: string) {
   const supabase = await createClient();
   const { data: deadline, error } = await supabase
     .from("life_deadlines")
-    .select("due_date, recurrence")
+    .select("*")
     .eq("user_id", userId)
     .eq("id", id)
     .single();
   if (error || !deadline) return { error: error ?? new Error("Scadenza non trovata") };
 
   const today = todayIso();
+
+  if (deadline.recurrence !== "none" && deadline.start_date && deadline.duration_days != null) {
+    const tl = computeTimeline({ ...deadline, legacy_end: deadline.due_date }, today);
+    const newStart = tl.end && tl.end > today ? tl.end : today;
+    return supabase
+      .from("life_deadlines")
+      .update({
+        start_date: newStart,
+        due_date: addDays(newStart, deadline.duration_days),
+        frozen_days: 0,
+        // se era congelata resta congelata: il blocco riparte da oggi
+        frozen_since: deadline.timeline_running ? null : today,
+        last_paid_at: today,
+      })
+      .eq("user_id", userId)
+      .eq("id", id);
+  }
+
   const next = nextDueDate(deadline.due_date, deadline.recurrence, today);
   const values: Tables["life_deadlines"]["Update"] = next
     ? { due_date: next, last_paid_at: today }

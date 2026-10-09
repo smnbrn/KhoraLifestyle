@@ -6,10 +6,11 @@ import { z } from "zod";
 import { getCurrentUser } from "@/services/auth.service";
 import { createBlock, createPage, deleteBlock, deletePage, reorderBlocks, updateBlockContent, updatePage } from "@/services/pages.service";
 import type { ActionResult } from "@/lib/action-result";
+import { todayIso } from "@/lib/dates";
 import type { Json } from "@/types/database.types";
 
 const SECTIONS = ["general", "work", "life", "finance"] as const;
-const BLOCK_TYPES = ["heading", "text", "checklist", "table"] as const;
+const BLOCK_TYPES = ["heading", "text", "checklist", "table", "gantt"] as const;
 
 const pageSchema = z.object({
   title: z.string().trim().min(1, "Dai un titolo alla pagina").max(120),
@@ -27,6 +28,8 @@ function defaultContent(type: (typeof BLOCK_TYPES)[number]): Json {
       return { text: "" };
     case "checklist":
       return { items: [{ id: id(), text: "", done: false }] };
+    case "gantt":
+      return { title: "", items: [{ id: id(), name: "", start: todayIso(), days: 7, done: false, micro: false }] };
     case "table": {
       const c1 = id();
       const c2 = id();
