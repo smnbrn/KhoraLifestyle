@@ -1,6 +1,6 @@
 # Khora Lifestyle
 
-> *Everything your mind shouldn't have to remember.*
+> _Everything your mind shouldn't have to remember._
 
 Khora è un gestionale personale e professionale in un'unica app web: lavoro,
 finanze e vita quotidiana, con un calendario che raccoglie tutte le scadenze.
@@ -15,13 +15,14 @@ fogli di calcolo e promemoria.
 ## Cosa fa
 
 ### Home e calendario
+
 - Home con **obiettivi ad anello** (anche su più anni) che si aggiornano da soli
   dai dati dell'app: fatturato, investimenti, giorni di palestra, clienti acquisiti, giorni di viaggio.
 - Un riepilogo "oggi in breve" con scadenze di oggi, della settimana e in ritardo.
 - **Calendario mensile** che unisce scadenze di task, progetti, macro attività,
   affitti, veicoli, viaggi ed eventi personali.
 - Ogni voce ha uno **stato a colori** con legenda: verde completata, rossa scaduta,
-  arancio in corso. Passando il mouse si può segnarla come *Fatto*, eliminarla o aprirla.
+  arancio in corso. Passando il mouse si può segnarla come _Fatto_, eliminarla o aprirla.
 
 ![Calendario](docs/screenshots/calendario.png)
 
@@ -30,13 +31,14 @@ La stessa vista, in versione compatta, è nella Home accanto alle prossime scade
 ![Calendario nella Home](docs/screenshots/home-calendario.png)
 
 ### Lavoro
+
 - **Clienti, rubrica e documenti** con file collegati.
 - **Progetti** con campi personalizzati, avanzamento nel tempo e di lavoro, valore, costi e profitto.
 - Ogni progetto è diviso in macro attività e micro attività, con **diagramma di Gantt**
   e avanzamento calcolato in automatico. Un progetto con tutte le macro attività
   completate passa da solo a "completato".
 - **Task** con un tempo "a giorni": data di inizio + durata, con un interruttore
-  *scorre / congelato*. Se il tempo è congelato la scadenza slitta di un giorno ogni giorno.
+  _scorre / congelato_. Se il tempo è congelato la scadenza slitta di un giorno ogni giorno.
 - Dashboard di lavoro e report per periodo.
 
 ![Scheda di un progetto](docs/screenshots/progetto.png)
@@ -44,6 +46,7 @@ La stessa vista, in versione compatta, è nella Home accanto alle prossime scade
 ![Gantt, macro e micro attività](docs/screenshots/progetti-gantt.png)
 
 ### Finanze
+
 - **Entrate e uscite** in schede separate, con categorie, cliente e progetto collegati.
 - Obiettivi di fatturato e di investimento, anche su più anni.
 - **Investimenti** con versamenti e prelievi, commissioni e profitto netto.
@@ -53,11 +56,13 @@ La stessa vista, in versione compatta, è nella Home accanto alle prossime scade
 ![Elenco delle entrate](docs/screenshots/finanze-movimenti.png)
 
 ### Vita
+
 - **Affitti** con giorno di incasso mensile e scadenze del contratto.
 - **Veicoli** con scadenze (bollo, assicurazione, tagliando) e ricorrenze.
 - **Viaggi** con tappe e prenotazioni, e un registro degli **allenamenti**.
 
 ### Pagine personalizzate
+
 Ogni utente può creare nuove pagine dal menu ("Crea una nuova pagina") con blocchi di
 titolo, testo, elenco spunte, tabella e **Gantt**, e metterle nella sezione che preferisce.
 Le tabelle hanno colonne di testo, numero, valuta e casella da spuntare, con la somma in fondo.
@@ -65,6 +70,7 @@ Le tabelle hanno colonne di testo, numero, valuta e casella da spuntare, con la 
 ![Pagina personalizzata](docs/screenshots/pagine.png)
 
 ### Account e sicurezza
+
 - Registrazione con conferma via email, accesso e **recupero password**.
 - Cambio password dalle impostazioni.
 - Notifiche interne per le scadenze, tema chiaro e scuro, installabile come app (PWA).
@@ -112,3 +118,10 @@ L'analisi completa (schema del database, decisioni di progetto e piano di svilup
 ## Demo
 
 Una demo online con dati di prova è disponibile su richiesta.
+
+## Licenza
+
+Il codice è distribuito con licenza [MIT](LICENSE). I font in `public/fonts/`
+(Helvetica Neue) non fanno parte del progetto e non sono coperti da questa licenza:
+restano di proprietà dei rispettivi titolari. Le immagini in `docs/screenshots/`
+mostrano dati inventati.
