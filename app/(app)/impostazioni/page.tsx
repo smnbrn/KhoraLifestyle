@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/services/auth.service";
 import { getProfile } from "@/services/profiles.service";
+import { PasswordForm } from "./password-form";
 import { SettingsForm } from "./settings-form";
 
 export default async function ImpostazioniPage() {
@@ -8,7 +9,7 @@ export default async function ImpostazioniPage() {
   const { data: profile } = user ? await getProfile(user.id) : { data: null };
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
+    <div className="mx-auto max-w-2xl space-y-6 px-6 py-10">
       <Card>
         <CardHeader>
           <CardTitle>Impostazioni</CardTitle>
@@ -34,6 +35,19 @@ export default async function ImpostazioniPage() {
               quoteNumberPrefix: profile?.quote_number_prefix ?? "",
             }}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Password</CardTitle>
+          <CardDescription>
+            Per cambiarla serve la password attuale. Se non la ricordi, esci e usa «Password dimenticata?» nella
+            pagina di accesso.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PasswordForm />
         </CardContent>
       </Card>
     </div>

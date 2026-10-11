@@ -299,10 +299,13 @@ export function CalendarGrid({
   monthDate,
   items,
   compact = false,
+  showHint = true,
 }: {
   monthDate: Date;
   items: CalendarItem[];
   compact?: boolean;
+  /** Frase "Passa il mouse…" sopra la griglia: la Home la mostra da sé, fuori dal componente. */
+  showHint?: boolean;
 }) {
   // Un solo riquadro aperto alla volta, deciso qui: passando da una voce all'altra il nuovo
   // sostituisce subito il vecchio (niente chiusure "a tempo" che si pestano i piedi).
@@ -332,9 +335,11 @@ export function CalendarGrid({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
-        Passa il mouse su una voce per segnarla come «Fatto» o eliminarla.
-      </p>
+      {showHint && (
+        <p className="text-xs text-muted-foreground">
+          Passa il mouse su una voce per segnarla come «Fatto» o eliminarla.
+        </p>
+      )}
       <div className="overflow-hidden rounded-lg border">
         <div className="grid grid-cols-7 border-b bg-muted/40 text-xs font-medium text-muted-foreground">
           {weekdayLabels.map((label) => (

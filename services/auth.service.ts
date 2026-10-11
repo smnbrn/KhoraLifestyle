@@ -11,12 +11,17 @@ export async function signInWithPassword(email: string, password: string) {
   return supabase.auth.signInWithPassword({ email, password });
 }
 
-export async function signUpWithPassword(email: string, password: string, fullName: string) {
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+  fullName: string,
+  emailRedirectTo?: string
+) {
   const supabase = await createClient();
   return supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: { data: { full_name: fullName }, emailRedirectTo },
   });
 }
 

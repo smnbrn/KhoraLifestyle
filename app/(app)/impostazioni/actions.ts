@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
+import { changePasswordSchema } from "@/schemas/auth.schema";
 import { profileSchema } from "@/schemas/profile.schema";
-import { getCurrentUser } from "@/services/auth.service";
+import { getCurrentUser, signInWithPassword, updateUserPassword } from "@/services/auth.service";
 import { updateProfile } from "@/services/profiles.service";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -54,5 +55,35 @@ export async function saveProfile(formData: FormData): Promise<ActionResult> {
   }
 
   revalidatePath("/impostazioni");
+  return { success: true, data: undefined };
+}
+
+export async function changePassword(formData: FormData): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user || !user.email) {
+    return { success: false, error: "Sessione scaduta. Accedi di nuovo." };
+  }
+
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0].message };
+  }
+
+  // Si verifica la password attuale prima di cambiarla: chi trova l'app
+  // aperta su un computer non può bloccare fuori il proprietario.
+  const { error: verifyError } = await signInWithPassword(user.email, parsed.data.currentPassword);
+  if (verifyError) {
+    return { success: false, error: "La password attuale non è corretta." };
+  }
+
+  const { error } = await updateUserPassword(parsed.data.password);
+  if (error) {
+    return { success: false, error: "Non è stato possibile cambiare la password. Riprova." };
+  }
+
   return { success: true, data: undefined };
 }

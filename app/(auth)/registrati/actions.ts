@@ -1,5 +1,6 @@
 "use server";
 
+import { getRequestOrigin } from "@/lib/origin";
 import { registerSchema } from "@/schemas/auth.schema";
 import { signUpWithPassword } from "@/services/auth.service";
 import type { ActionResult } from "@/lib/action-result";
@@ -16,10 +17,15 @@ export async function register(formData: FormData): Promise<ActionResult<{ email
     return { success: false, error: parsed.error.issues[0].message };
   }
 
+  // Il link nell'email di conferma porta al login con un messaggio di conferma.
+  const origin = await getRequestOrigin();
+  const emailRedirectTo = `${origin}/auth/confirm?next=${encodeURIComponent("/login?confermato=1")}`;
+
   const { data, error } = await signUpWithPassword(
     parsed.data.email,
     parsed.data.password,
-    parsed.data.fullName
+    parsed.data.fullName,
+    emailRedirectTo
   );
 
   if (error) {

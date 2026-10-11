@@ -14,8 +14,6 @@ import { getGoalsProgress } from "@/services/goals.service";
 import { getWorkKpis } from "@/services/dashboard.service";
 import { createClient } from "@/lib/supabase/server";
 
-const WORK_TYPES = new Set(["task", "project", "phase", "invoice"]);
-
 function StatCard({
   icon: Icon,
   label,
@@ -69,7 +67,6 @@ export default async function HomePage() {
   });
   const overdue = deadlines.filter((d) => d.overdue);
   const upcoming = deadlines.filter((d) => !d.overdue && diffDays(today, d.date) >= 0).slice(0, 6);
-  const workOverdue = overdue.filter((d) => WORK_TYPES.has(d.type)).length;
 
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -98,18 +95,19 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        <div className="space-y-3 xl:col-span-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-muted-foreground">Calendario</h2>
-            <Link href="/calendario" className="text-xs text-primary hover:underline">
-              Apri calendario
-            </Link>
-          </div>
-          <CalendarGrid monthDate={new Date(year, month - 1, 1)} items={calendarItems} compact />
+      {/* Griglia a due righe: intestazione + frase, poi calendario (col. 1-2) e box (col. 3).
+          Il box sta nella seconda riga, quindi parte esattamente all'altezza della tabella. */}
+      <section className="grid gap-x-4 gap-y-3 xl:grid-cols-3">
+        <div className="space-y-1 xl:col-span-2">
+          <h2 className="text-sm font-medium text-muted-foreground">Calendario</h2>
+          <p className="text-xs text-muted-foreground">Passa il mouse su una voce per segnarla come «Fatto» o eliminarla.</p>
         </div>
 
-        <Card className="h-fit">
+        <div className="xl:col-span-2">
+          <CalendarGrid monthDate={new Date(year, month - 1, 1)} items={calendarItems} compact showHint={false} />
+        </div>
+
+        <Card className="h-fit xl:col-start-3 xl:row-start-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <CalendarDays className="size-4" /> Prossime scadenze
@@ -129,59 +127,6 @@ export default async function HomePage() {
           </CardContent>
         </Card>
       </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Panoramica</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <PanelLinks
-            title="Lavoro"
-            note={workOverdue > 0 ? `${plural(workOverdue, "scadenza in ritardo", "scadenze in ritardo")}` : undefined}
-            links={[
-              ["Dashboard lavoro", "/lavoro"],
-              ["Progetti", "/progetti"],
-              ["Task", "/task"],
-              ["Clienti", "/clienti"],
-              ["Rubrica", "/rubrica"],
-            ]}
-          />
-          <PanelLinks
-            title="Finanze"
-            links={[
-              ["Entrate e uscite", "/finanze"],
-              ["Investimenti", "/finanze/investimenti"],
-              ["Report", "/report"],
-            ]}
-          />
-          <PanelLinks
-            title="Vita"
-            links={[
-              ["Dashboard vita", "/vita"],
-              ["Affitti", "/vita/affitti"],
-              ["Allenamenti", "/vita/allenamenti"],
-              ["Viaggi", "/vita/viaggi"],
-              ["Veicoli", "/vita/veicoli"],
-            ]}
-          />
-        </div>
-      </section>
     </div>
-  );
-}
-
-function PanelLinks({ title, links, note }: { title: string; links: [string, string][]; note?: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        {note && <p className="text-xs text-destructive">{note}</p>}
-      </CardHeader>
-      <CardContent className="space-y-1.5">
-        {links.map(([label, href]) => (
-          <Link key={href} href={href} className="block text-sm text-muted-foreground hover:text-foreground">
-            {label}
-          </Link>
-        ))}
-      </CardContent>
-    </Card>
   );
 }

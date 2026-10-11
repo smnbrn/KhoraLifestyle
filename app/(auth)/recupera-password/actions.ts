@@ -1,7 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
-
+import { getRequestOrigin } from "@/lib/origin";
 import { resetPasswordSchema } from "@/schemas/auth.schema";
 import { sendPasswordResetEmail } from "@/services/auth.service";
 import type { ActionResult } from "@/lib/action-result";
@@ -13,8 +12,8 @@ export async function requestPasswordReset(formData: FormData): Promise<ActionRe
     return { success: false, error: parsed.error.issues[0].message };
   }
 
-  const origin = (await headers()).get("origin") ?? "";
-  const redirectTo = `${origin}/auth/confirm?type=recovery&next=/recupera-password/aggiorna`;
+  const origin = await getRequestOrigin();
+  const redirectTo = `${origin}/auth/confirm?type=recovery&next=${encodeURIComponent("/recupera-password/aggiorna")}`;
 
   const { error } = await sendPasswordResetEmail(parsed.data.email, redirectTo);
 

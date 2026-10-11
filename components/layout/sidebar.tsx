@@ -11,7 +11,7 @@ export function Sidebar({ pages }: { pages: SidebarPage[] }) {
           {APP_NAME}
         </Link>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="scroll-autohide flex-1 overflow-y-auto">
         <SidebarNav pages={pages} />
       </div>
     </aside>
