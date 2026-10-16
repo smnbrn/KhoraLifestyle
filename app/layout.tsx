@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants/brand";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/components/layout/theme-provider";
 import { ServiceWorkerRegister } from "@/components/shared/sw-register";
+import { GoogleAnalytics } from "@/components/shared/google-analytics";
 import "./globals.css";
 
 // Font: Helvetica Neue (font di sistema Apple, nessun download) con ripiego su
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Toaster />
           <ServiceWorkerRegister />
         </ThemeProvider>
+        <GoogleAnalytics />
       </body>
     </html>
   );
