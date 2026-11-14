@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { createClient } from "@/lib/supabase/server";
 
 // Layer sottile sopra Supabase Auth — le Server Action chiamano queste
@@ -40,9 +42,11 @@ export async function signOut() {
   return supabase.auth.signOut();
 }
 
-export async function getCurrentUser() {
+// Con cache() layout e pagina della stessa richiesta condividono una sola
+// verifica con Supabase invece di farne una ciascuno.
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error) return null;
   return data.user;
-}
+});

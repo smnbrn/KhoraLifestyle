@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

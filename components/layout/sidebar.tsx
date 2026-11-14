@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 
 import { APP_NAME } from "@/lib/constants/brand";
 import { SidebarNav, type SidebarPage } from "./sidebar-nav";

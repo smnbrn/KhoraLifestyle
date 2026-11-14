@@ -38,9 +38,10 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifica il token sul posto (chiavi asimmetriche) invece di
+  // chiedere ogni volta a Supabase: stesso controllo "ottimistico", meno lavoro.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   const isPublicPath = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
 
@@ -54,5 +55,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Solo le pagine: file statici, caratteri, service worker e manifest non
+  // hanno bisogno della sessione e ognuno farebbe partire una funzione (CPU
+  // di Vercel consumata per niente).
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|fonts/|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|js|txt|xml|webmanifest)$).*)",
+  ],
 };
