@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Building2, Car, Dumbbell, Plane } from "lucide-react";

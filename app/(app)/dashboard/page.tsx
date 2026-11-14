@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { AlertTriangle, CalendarDays, CalendarRange, FolderKanban, Sun } from "lucide-react";

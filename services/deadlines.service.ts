@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { createClient } from "@/lib/supabase/server";
 import { computeTimeline } from "@/lib/timeline";
 import { addDays, todayIso } from "@/lib/dates";
@@ -34,11 +36,20 @@ export type DeadlineItem = {
  * Con `includeCompleted` ci sono anche quelle completate, marcate `done`: le usa il calendario,
  * che le deve continuare a mostrare (in verde).
  */
-export async function collectDeadlines(
+export function collectDeadlines(
   userId: string,
   options: { includeCompleted?: boolean } = {}
 ): Promise<DeadlineItem[]> {
-  const includeCompleted = !!options.includeCompleted;
+  return loadDeadlines(userId, !!options.includeCompleted);
+}
+
+// cache(): notifiche (layout) e Home/Vita leggono le stesse scadenze nella
+// stessa richiesta; così le 7 letture partono una volta sola. Argomenti
+// semplici (non un oggetto) perché cache() li confronta per identità.
+const loadDeadlines = cache(async function loadDeadlines(
+  userId: string,
+  includeCompleted: boolean
+): Promise<DeadlineItem[]> {
   const supabase = await createClient();
   const today = todayIso();
 
@@ -226,7 +237,7 @@ export async function collectDeadlines(
   }
 
   return items.sort((a, b) => a.date.localeCompare(b.date));
-}
+});
 
 /** Incassi dell'affitto (giorno del mese) che cadono in [start, end): per il calendario mensile. */
 export async function collectRentIncome(userId: string, start: string, end: string): Promise<DeadlineItem[]> {

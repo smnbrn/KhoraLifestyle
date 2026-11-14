@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { Bell, CheckSquare, Receipt, FolderKanban, Layers, Home, Car, Plane } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
